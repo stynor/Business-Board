@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Business Board</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{--bg:#f4f3fa;--c:#fff;--c2:#ebe8f7;--tx:#1f1d33;--mu:#77738f;--ac:#7c3aed;--gold:#d4a017;--ln:#d9d5ec;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#17161f;--c:#232230;--c2:#2f2d42;--tx:#f0eefb;--mu:#a09cbd;--ac:#9d6bff;--ln:#3b3952;color-scheme:dark}}
+:root[data-theme=dark]{--bg:#17161f;--c:#232230;--c2:#2f2d42;--tx:#f0eefb;--mu:#a09cbd;--ac:#9d6bff;--ln:#3b3952;color-scheme:dark}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+#app{padding:12px 10px 20px;max-width:900px;margin:0 auto}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+h1{font-size:19px;margin:0}h1 span{color:var(--gold)}
+small{color:var(--mu)}
+button,select{font:inherit;border:0;border-radius:12px;padding:9px 12px;background:var(--c2);color:var(--tx);cursor:pointer}
+button:active{transform:scale(.96)}
+.pri{background:var(--ac);color:#fff}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;align-items:center}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}
+.tiles div{background:var(--c);border-radius:14px;padding:10px 6px;text-align:center;border:1px solid var(--ln)}
+.tiles b{display:block;font-size:18px}.tiles div:nth-child(3) b{color:#ef5350}.tiles div:nth-child(4) b{color:var(--gold)}
+.tiles small{font-size:11px}
+input,textarea{width:100%;font:inherit;padding:10px;border-radius:12px;border:1.5px solid var(--ln);background:var(--bg);color:var(--tx);margin:6px 0}
+.chip{padding:7px 10px;font-size:13px}.chip.on{outline:2px solid var(--ac)}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+.wrap{overflow:auto;max-height:66vh;border-radius:14px;border:1px solid var(--ln);background:var(--c)}
+table{border-collapse:separate;border-spacing:0;min-width:100%}
+th,td{border-right:1px solid var(--ln);border-bottom:1px solid var(--ln);min-width:92px;height:66px;padding:4px;vertical-align:top}
+thead th{position:sticky;top:0;z-index:2;height:auto;min-height:44px;background:linear-gradient(#e9d9a6,#d9c37c);color:#3a2f10;font-size:12px;cursor:pointer;padding:8px 4px}
+.rh{position:sticky;left:0;z-index:1;min-width:74px;max-width:74px;background:var(--c2);cursor:pointer;text-align:center;padding:4px 2px}
+.rh b{display:block;font-size:17px}.rh small{font-size:10px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+thead .cn{left:0;z-index:3;min-width:74px;cursor:default}
+td{cursor:pointer}
+.sn{border-radius:6px;height:100%;padding:5px;font-size:11px;line-height:1.2;color:#1c1c1c;box-shadow:0 2px 5px #0003;overflow:hidden;transition:opacity .2s}
+.sn small{display:block;color:#222a;margin-top:3px}
+#md{display:none;position:fixed;inset:0;background:#0008;z-index:20;align-items:flex-end;justify-content:center}
+#md.show{display:flex}
+.sheet{background:var(--c);width:100%;max-width:520px;max-height:90vh;overflow:auto;border-radius:22px 22px 0 0;padding:14px 14px calc(18px + env(safe-area-inset-bottom,0px));animation:up .22s}
+@keyframes up{from{transform:translateY(40px);opacity:0}}
+.stb{background:var(--c2);border:2px solid transparent;font-size:13px;padding:8px 10px}.stb:before{content:"";display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--c);margin-right:6px}.stb.on{border-color:var(--ac)}
+.ck{display:flex;gap:6px;align-items:center;margin:4px 0}.ck span{flex:1}
+h4{margin:12px 0 2px}a{color:var(--ac)}
+.empty{padding:30px;text-align:center;color:var(--mu)}
+</style></head><body><div id="app"></div><div id="md"></div>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const ST={g:['Готово','#86d95a'],o:['В процессе','#ffb347'],r:['Проблема','#ef5350'],n:['Не начато','#c9ced9']};
+const DC=['Замер','Дизайн / цена','Аванс','Раскрой','Фурнитура','Сверление','Материалы','Кромка','Сборка','Установка','Оплата'];
+const SEED="3o,7g/3g,10o/3g,10o/3g,10o/3g,8o/3g/3g/1g,8o/1g/3g/0g/1g,8o/1g/2o/3o,8o/0o,9g/3g";
+function demo(){return{nid:100,cols:DC.map((n,i)=>({id:'c'+i,name:n})),rows:SEED.split('/').map((s,i)=>{const cells={};s.split(',').forEach(x=>{const m=x.match(/(\d+)(\w)/);cells['c'+m[1]]={title:'',st:m[2],items:[],note:'',link:''}});return{id:'r'+i,client:'Клиент '+(i+1),sum:0,paid:0,cells}})}}
+let B=null,P={theme:''},F={q:'',st:''},M=null,user='';
+try{B=JSON.parse(localStorage.getItem('bb')||'null');Object.assign(P,JSON.parse(localStorage.getItem('bbp')||'{}'))}catch(e){}
+if(!B||!B.cols)B=demo();
+try{const u=Telegram.WebApp.initDataUnsafe.user;if(u)user=u.first_name;Telegram.WebApp.ready();Telegram.WebApp.expand()}catch(e){}
+const save=()=>{try{localStorage.setItem('bb',JSON.stringify(B));localStorage.setItem('bbp',JSON.stringify(P))}catch(e){}};
+const uid=()=>'x'+(B.nid++);
+function stats(){
+  const n=B.rows.length,last=B.cols.length?B.cols[B.cols.length-1].id:'';let done=0,bad=0,debt=0;
+  B.rows.forEach(r=>{if(r.cells[last]&&r.cells[last].st==='g')done++;Object.values(r.cells).forEach(c=>{if(c.st==='r')bad++});debt+=(+r.sum||0)-(+r.paid||0)});
+  return[[n,'Заказов'],[n-done,'Активных'],[bad,'Проблем'],[debt.toLocaleString('ru'),'Долг клиентов']]}
+function tbl(){
+  if(!B.rows.length)return'<div class="empty">Нет заказов. Нажми «+ Заказ»</div>';
+  const q=F.q.trim().toLowerCase();
+  let h='<table><thead><tr><th class="cn">№</th>'+B.cols.map(c=>`<th data-a="col" data-c="${c.id}">${esc(c.name)}</th>`).join('')+'</tr></thead><tbody>';
+  B.rows.forEach((r,i)=>{
+    h+=`<tr><th class="rh" data-a="row" data-r="${i}"><b>${i+1}</b><small>${esc(r.client)}</small></th>`;
+    B.cols.forEach(c=>{
+      const x=r.cells[c.id];let s='';
+      if(x){const d=x.items.filter(k=>k.d).length;
+        const hit=(!F.st||x.st===F.st)&&(!q||(r.client+' '+x.title+' '+x.note+' '+x.items.map(k=>k.t).join(' ')).toLowerCase().includes(q));
+        s=`<div class="sn" style="background:${ST[x.st][1]};opacity:${hit?1:.22}">${esc(x.title)||'—'}${x.items.length?`<small>☑ ${d}/${x.items.length}</small>`:''}</div>`}
+      h+=`<td data-a="cell" data-r="${i}" data-c="${c.id}">${s}</td>`});
+    h+='</tr>'});
+  return h+'</tbody></table>'}
+function R(){
+  const t=$('#tbl'),sc=t?t.scrollTop:0,sl=t?t.scrollLeft:0;
+  $('#app').innerHTML=`<div class="top"><h1>📋 Business <span>Board</span></h1><div class="row" style="margin:0"><button data-a="set">⚙️</button></div></div>
+  <small>${user?'Привет, '+esc(user)+'! ':''}Нажми на клетку, чтобы открыть карточку</small>
+  <div class="tiles">${stats().map(s=>`<div><b>${s[0]}</b><small>${s[1]}</small></div>`).join('')}</div>
+  <div class="row"><input id="q" placeholder="🔍 Поиск по клиенту и задачам" value="${esc(F.q)}" style="flex:1;margin:0;min-width:150px"><button class="pri" data-a="ao">+ Заказ</button><button data-a="ac">+ Этап</button></div>
+  <div class="row"><button class="chip${F.st?'':' on'}" data-a="fl" data-v="">Все</button>${Object.keys(ST).map(k=>`<button class="chip${F.st===k?' on':''}" data-a="fl" data-v="${k}"><span class="dot" style="background:${ST[k][1]}"></span>${ST[k][0]}</button>`).join('')}</div>
+  <div class="wrap" id="tbl">${tbl()}</div>`;
+  const n=$('#tbl');n.scrollTop=sc;n.scrollLeft=sl}
+function mdCard(){
+  const r=B.rows[M.r],x=r.cells[M.c],ci=B.cols.findIndex(c=>c.id===M.c),ok=/^https?:\/\//i.test(x.link);
+  return`<div class="top"><b>№${M.r+1} · ${esc(r.client)}</b><button data-a="close">✕</button></div><small>Этап: ${esc(B.cols[ci].name)}</small>
+  <input data-f="title" placeholder="Что сделать / название" value="${esc(x.title)}">
+  <div class="row">${Object.keys(ST).map(k=>`<button class="stb${x.st===k?' on':''}" data-a="st" data-v="${k}"><span class="dot" style="background:${ST[k][1]};margin:0 6px 0 -2px"></span>${ST[k][0]}</button>`).join('')}</div>
+  <h4>Чек-лист</h4>${x.items.map((k,i)=>`<div class="ck"><button data-a="ck" data-v="${i}">${k.d?'☑':'☐'}</button><span style="${k.d?'text-decoration:line-through;opacity:.6':''}">${esc(k.t)}</span><button data-a="di" data-v="${i}">×</button></div>`).join('')}
+  <div class="row"><input id="ni" placeholder="Новый пункт" style="flex:1;margin:0"><button class="pri" data-a="add">+</button></div>
+  <textarea data-f="note" rows="3" placeholder="Комментарий">${esc(x.note)}</textarea>
+  <input data-f="link" placeholder="Ссылка: фото, чертёж, Drive" value="${esc(x.link)}">${ok?`<a href="${esc(x.link)}" target="_blank" rel="noopener">🔗 Открыть ссылку</a>`:''}
+  <h4>Переместить на этап</h4><select data-f="move" style="width:100%">${B.cols.map(c=>`<option value="${c.id}"${c.id===M.c?' selected':''}>${esc(c.name)}</option>`).join('')}</select>
+  <div class="row"><button class="pri" style="flex:1" data-a="next">✅ Готово, на следующий этап</button><button data-a="dc">🗑</button></div>`}
+function mdRow(){
+  const r=B.rows[M.r],debt=(+r.sum||0)-(+r.paid||0);
+  return`<div class="top"><b>Заказ №${M.r+1}</b><button data-a="close">✕</button></div>
+  <input data-f="client" placeholder="Клиент" value="${esc(r.client)}">
+  <small>Сумма заказа</small><input data-f="sum" type="number" inputmode="decimal" value="${r.sum||''}">
+  <small>Аванс / оплачено</small><input data-f="paid" type="number" inputmode="decimal" value="${r.paid||''}">
+  <p>Долг клиента: <b style="color:var(--gold)">${debt.toLocaleString('ru')}</b></p>
+  <div class="row"><button data-a="rmv" data-v="-1">↑</button><button data-a="rmv" data-v="1">↓</button><button data-a="dr" style="margin-left:auto">${M.cf?'Точно удалить?':'🗑 Удалить заказ'}</button></div>`}
+function mdCol(){
+  const c=B.cols.find(x=>x.id===M.c);
+  return`<div class="top"><b>Этап</b><button data-a="close">✕</button></div>
+  <input data-f="cname" value="${esc(c.name)}">
+  <div class="row"><button data-a="cmv" data-v="-1">← Влево</button><button data-a="cmv" data-v="1">Вправо →</button><button data-a="dl" style="margin-left:auto">${M.cf?'Точно удалить?':'🗑 Удалить'}</button></div>`}
+function mdSet(){
+  return`<div class="top"><b>Настройки</b><button data-a="close">✕</button></div>
+  <h4>Тема</h4><div class="row"><button data-a="th" data-v="light">☀️ Светлая</button><button data-a="th" data-v="dark">🌙 Тёмная</button><button data-a="th" data-v="">Авто</button></div>
+  <h4>Данные</h4><div class="row"><button data-a="demo">${M.cf==='d'?'Точно? Данные сотрутся':'Загрузить пример с фото'}</button><button data-a="clr">${M.cf==='c'?'Точно? Всё удалится':'Пустая доска'}</button></div>
+  <small>Данные хранятся на этом телефоне.</small>`}
+function modal(){
+  const m=$('#md');
+  if(!M){m.className='';m.innerHTML='';return}
+  m.className='show';m.innerHTML='<div class="sheet">'+({card:mdCard,row:mdRow,col:mdCol,set:mdSet})[M.k]()+'</div>'}
+function closeM(){
+  if(M&&M.k==='card'){const r=B.rows[M.r],x=r&&r.cells[M.c];if(x&&!x.title&&!x.items.length&&!x.note&&!x.link&&x.st==='n')delete r.cells[M.c]}
+  M=null;save();modal();R()}
+document.addEventListener('click',e=>{
+  if(e.target.id==='md'){closeM();return}
+  const b=e.target.closest('[data-a]');if(!b)return;
+  const a=b.dataset.a,v=b.dataset.v,d=b.dataset;
+  const card=()=>B.rows[M.r].cells[M.c];
+  if(a==='cell'){const r=B.rows[+d.r];if(!r.cells[d.c])r.cells[d.c]={title:'',st:'n',items:[],note:'',link:''};M={k:'card',r:+d.r,c:d.c};modal();return}
+  if(a==='row'){M={k:'row',r:+d.r};modal();return}
+  if(a==='col'){M={k:'col',c:d.c};modal();return}
+  if(a==='set'){M={k:'set'};modal();return}
+  if(a==='fl'){F.st=v;R();return}
+  if(a==='ao'){B.rows.push({id:uid(),client:'Новый клиент',sum:0,paid:0,cells:{}});save();M={k:'row',r:B.rows.length-1};modal();R();return}
+  if(a==='ac'){const id=uid();B.cols.push({id,name:'Новый этап'});save();M={k:'col',c:id};modal();R();return}
+  if(a==='close'){closeM();return}
+  if(a==='st'){card().st=v}
+  else if(a==='ck'){const k=card().items[+v];k.d=!k.d}
+  else if(a==='di'){card().items.splice(+v,1)}
+  else if(a==='add'){const i=$('#ni'),t=i.value.trim();if(!t)return;card().items.push({t,d:false});save();modal();$('#ni').focus();R();return}
+  else if(a==='dc'){delete B.rows[M.r].cells[M.c];M=null}
+  else if(a==='next'){
+    const x=card(),i=B.cols.findIndex(c=>c.id===M.c);x.st='g';
+    const nx=B.cols[i+1];
+    if(nx&&!B.rows[M.r].cells[nx.id])B.rows[M.r].cells[nx.id]={title:x.title,st:'o',items:[],note:'',link:''};
+    M=null}
+  else if(a==='rmv'){const i=M.r,j=i+ +v;if(j<0||j>=B.rows.length)return;[B.rows[i],B.rows[j]]=[B.rows[j],B.rows[i]];M.r=j}
+  else if(a==='dr'){if(!M.cf){M.cf=1;modal();return}B.rows.splice(M.r,1);M=null}
+  else if(a==='cmv'){const i=B.cols.findIndex(c=>c.id===M.c),j=i+ +v;if(j<0||j>=B.cols.length)return;[B.cols[i],B.cols[j]]=[B.cols[j],B.cols[i]]}
+  else if(a==='dl'){if(!M.cf){M.cf=1;modal();return}B.cols=B.cols.filter(c=>c.id!==M.c);B.rows.forEach(r=>delete r.cells[M.c]);M=null}
+  else if(a==='th'){P.theme=v;if(v)document.documentElement.dataset.theme=v;else delete document.documentElement.dataset.theme}
+  else if(a==='demo'){if(M.cf!=='d'){M.cf='d';modal();return}B=demo();M=null}
+  else if(a==='clr'){if(M.cf!=='c'){M.cf='c';modal();return}B={nid:100,cols:DC.map((n,i)=>({id:'c'+i,name:n})),rows:[]};M=null}
+  save();modal();R()});
+document.addEventListener('input',e=>{
+  const t=e.target;
+  if(t.id==='q'){F.q=t.value;$('#tbl').innerHTML=tbl();return}
+  const f=t.dataset.f;if(!f||!M)return;
+  if(M.k==='card'){
+    if(f==='move'){
+      const r=B.rows[M.r],x=r.cells[M.c];if(t.value===M.c)return;
+      const o=r.cells[t.value];r.cells[t.value]=x;if(o)r.cells[M.c]=o;else delete r.cells[M.c];
+      M.c=t.value;save();modal();R();return}
+    r_=B.rows[M.r].cells[M.c];r_[f]=t.value}
+  else if(M.k==='row'){const r=B.rows[M.r];r[f]=f==='client'?t.value:(+t.value||0)}
+  else if(M.k==='col'){B.cols.find(c=>c.id===M.c).name=t.value}
+  save();R()});
+var r_;
+if(P.theme)document.documentElement.dataset.theme=P.theme;
+R();
+</script></body></html>
